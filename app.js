@@ -1,7 +1,16 @@
 // ---------- Config ----------
 const GEOJSON_PATH = "./data/states.geojson";
 const CSV_PATH = "./data/values_clean.csv"; // <= use the cleaned CSV I linked
-const RAMP = ["#f7fbff","#deebf7","#c6dbef","#9ecae1","#6baed6","#3182bd","#08519c"];
+
+// 10-step orange, light→dark (no near-white)
+const RAMP = [
+  "#FFE0CC", "#FFCC99", "#FFB366", "#FF9933", "#FF851A",
+  "#FF7300", "#F56500", "#D95C00", "#B24A00", "#803300"
+];
+
+const HOVER_DEFAULT = "Hover to see details"; // <- change this to whatever you like
+
+
 
 const map = L.map("map", { scrollWheelZoom: true, zoomControl: false })
   .setView([-25.3, 133.8], 4);
@@ -12,14 +21,18 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 const hoverInfo = document.getElementById("hoverInfo");
-const legendEl  = document.getElementById("legend");
+const legendEl = document.getElementById("legend");
 const metricSel = document.getElementById("metricSelect");
+
+hoverInfo.textContent = HOVER_DEFAULT;
 
 let dataByState = {};   // { "New South Wales": { "Black coal": 45812.6, ... }, ... }
 let metrics = [];       // ["Black coal","Brown coal","Natural gas",...]
 let activeMetric = null;
 let minVal = 0, maxVal = 1;
 let geoLayer = null;
+
+
 
 // ---------- CSV loader for wide format: state + many metric columns ----------
 async function loadWideCSV(url) {
@@ -70,21 +83,19 @@ function colorFor(v) {
 
 // ---------- Legend ----------
 function buildLegend(label) {
-  const steps = RAMP.length;
-  const interval = (maxVal - minVal) / steps;
+  const gradient = `linear-gradient(to right, ${RAMP.join(",")})`;
+  const unit = metricLabel(activeMetric);   // <-- was metricUnit
 
-  let html = `<div><strong>${label}</strong></div>`;
-  html += '<div class="scale">';
-  for (let i = 0; i < steps; i++) {
-    const swatch = RAMP[i];
-    const v0 = minVal + i * interval;
-    const v1 = i === steps - 1 ? maxVal : minVal + (i + 1) * interval;
-    html += `<div class="swatch" style="background:${swatch}" title="${v0.toFixed(2)}–${v1.toFixed(2)}"></div>`;
-  }
-  html += "</div>";
-  html += `<div style="margin-top:6px; font-size:12px">Min: ${minVal} | Max: ${maxVal}</div>`;
-  legendEl.innerHTML = html;
+  legendEl.innerHTML = `
+    <div><strong>${label} (${unit})</strong></div>
+    <div class="bar" style="background: ${gradient}"></div>
+    <div class="axis">
+      <span>${Number.isFinite(minVal) ? minVal.toFixed(0) : ""}</span>
+      <span>${Number.isFinite(maxVal) ? maxVal.toFixed(0) : ""}</span>
+    </div>
+  `;
 }
+
 
 // ---------- Feature styling & events ----------
 function metricLabel(metric) {
@@ -110,7 +121,7 @@ function popupHTML(name, obj) {
 
 function onEachFeature(feature, lyr) {
   const name = feature.properties.STATE_NAME || feature.properties.STATE || feature.properties.name;
-  const obj  = dataByState[name];
+  const obj = dataByState[name];
   lyr.bindPopup(popupHTML(name, obj));
 
   lyr.on({
@@ -125,7 +136,7 @@ function onEachFeature(feature, lyr) {
     },
     mouseout: e => {
       geoLayer.resetStyle(e.target);
-      hoverInfo.textContent = "Hover a state/territory";
+      hoverInfo.textContent = HOVER_DEFAULT;
       e.target.closePopup();
     },
     click: e => e.target.openPopup()

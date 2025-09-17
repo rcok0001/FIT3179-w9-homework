@@ -59,6 +59,21 @@ html, body { height: 100%; margin: 0; }
   z-index: 400;
 }
 
+.legend .bar {
+  height: 12px;
+  width: 220px;              /* tweak width as you like */
+  border: 1px solid #0002;
+  border-radius: 4px;
+}
+.legend .axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+
+
 /* Bonus: prevent overlays (info/legend) from blocking map interactions */
 .info, .legend { pointer-events: none; }
 .controls { pointer-events: auto; }  /* keep controls clickable */
