@@ -1,0 +1,10 @@
+[
+  { "state": "New South Wales", "value": 42 },
+  { "state": "Victoria", "value": 55 },
+  { "state": "Queensland", "value": 28 },
+  { "state": "South Australia", "value": 15 },
+  { "state": "Western Australia", "value": 33 },
+  { "state": "Tasmania", "value": 12 },
+  { "state": "Northern Territory", "value": 8 },
+  { "state": "Australian Capital Territory", "value": 61 }
+]
