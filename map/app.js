@@ -1,7 +1,7 @@
 // ---------- Config ----------
 const BASE = window.MAP_BASE || ""; // main page sets this to "map/", standalone map page leaves it unset
 const GEOJSON_PATH = BASE + "./data/states.geojson";
-const CSV_PATH = BASE + "./data/values_clean.csv"; // <= use the cleaned CSV I linked
+const CSV_PATH = BASE + "./data/values_clean.csv";
 
 // 10-step orange, light→dark (no near-white)
 const RAMP = [
@@ -9,10 +9,9 @@ const RAMP = [
   "#FF7300", "#F56500", "#D95C00", "#B24A00", "#803300"
 ];
 
-const HOVER_DEFAULT = "Hover to see details"; // <- change this to whatever you like
+const HOVER_DEFAULT = "Hover to see details";
 
-
-
+// ---------- Map ----------
 const map = L.map("map", { scrollWheelZoom: true, zoomControl: false })
   .setView([-25.3, 133.8], 4);
 L.control.zoom({ position: "topright" }).addTo(map);
@@ -21,9 +20,11 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 7, minZoom: 3, attribution: "&copy; OpenStreetMap contributors"
 }).addTo(map);
 
+// ---------- UI elements (inside iframe; mirrored to host) ----------
 const hoverInfo = document.getElementById("hoverInfo");
 const legendEl = document.getElementById("legend");
 const metricSel = document.getElementById("metricSelect");
+const totalInfoEl = document.getElementById("totalInfo");
 
 hoverInfo.textContent = HOVER_DEFAULT;
 
@@ -33,7 +34,18 @@ let activeMetric = null;
 let minVal = 0, maxVal = 1;
 let geoLayer = null;
 
+// ---------- Formatting ----------
+const nf = new Intl.NumberFormat("en-AU", { maximumFractionDigits: 1 });
 
+function unitFor(metric) {
+  return metric === "Per cent renewable generation" ? "%" : "GWh";
+}
+
+function formatValue(metric, v) {
+  if (v === null || v === undefined || isNaN(v)) return "No data";
+  const u = unitFor(metric);
+  return `${nf.format(v)}\u00A0${u}`; // NBSP before unit
+}
 
 // ---------- CSV loader for wide format: state + many metric columns ----------
 async function loadWideCSV(url) {
@@ -70,40 +82,68 @@ async function loadWideCSV(url) {
 
 // ---------- Scaling & color ----------
 function computeMinMax(data, metric) {
-  const vals = Object.values(data).map(o => Number(o?.[metric])).filter(v => !isNaN(v));
+  const vals = Object.values(data).map(o => Number(o?.[metric])).filter(v => Number.isFinite(v));
   return { min: Math.min(...vals), max: Math.max(...vals) };
 }
 
 function colorFor(v) {
-  if (isNaN(v)) return "#ddd";
+  if (!Number.isFinite(v)) return "#ddd";
   if (minVal === maxVal) return RAMP[RAMP.length - 1];
   const t = (v - minVal) / (maxVal - minVal);
   const idx = Math.min(RAMP.length - 1, Math.floor(t * RAMP.length));
   return RAMP[idx];
 }
 
-// ---------- Legend ----------
-function buildLegend(label) {
-  const gradient = `linear-gradient(to right, ${RAMP.join(",")})`;
-  const unit = metricLabel(activeMetric);   // <-- was metricUnit
+// ---------- Totals / Averages ----------
+function computeSum(metric) {
+  const vals = Object.values(dataByState)
+    .map(o => Number(o?.[metric]))
+    .filter(v => Number.isFinite(v));
+  return vals.reduce((a, b) => a + b, 0);
+}
 
+function computeAverage(metric) {
+  const vals = Object.values(dataByState)
+    .map(o => Number(o?.[metric]))
+    .filter(v => Number.isFinite(v));
+  return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : NaN;
+}
+
+// ---------- Legend ----------
+function buildLegend() {
+  const gradient = `linear-gradient(to right, ${RAMP.join(",")})`;
+  const unit = unitFor(activeMetric);
+
+  // Compute Total or Average
+  const isPercent = unit === "%";
+  const value = isPercent ? computeAverage(activeMetric) : computeSum(activeMetric);
+  const label = isPercent ? "Average" : "Total";
+  const valueText = Number.isFinite(value)
+    ? `${label}: ${formatValue(activeMetric, value)}`
+    : `${label}: No data`;
+
+  // Build legend HTML with a bold subheading above the bar
   legendEl.innerHTML = `
-    <div><strong>${label} (${unit})</strong></div>
-    <div class="bar" style="background: ${gradient}"></div>
-    <div class="axis">
-      <span>${Number.isFinite(minVal) ? minVal.toFixed(0) : ""}</span>
-      <span>${Number.isFinite(maxVal) ? maxVal.toFixed(0) : ""}</span>
+    <div style="font-weight:600;font-size:.95rem;">${activeMetric} (${unit})</div>
+    <div style="font-size:.9rem;color:#374151;margin-bottom:4px;">${valueText}</div>
+    <div style="font-weight:600;margin-top:6px;">Scale</div>
+    <div class="bar" style="background:${gradient};
+         height:12px;border-radius:6px;
+         box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);"></div>
+    <div class="axis" style="display:flex;justify-content:space-between;
+         font-size:.85rem;color:#6b7280;">
+      <span>${Number.isFinite(minVal) ? nf.format(minVal) : ""}</span>
+      <span>${Number.isFinite(maxVal) ? nf.format(maxVal) : ""}</span>
     </div>
   `;
+
+  // Clear the old separate total element if it exists
+  if (totalInfoEl) totalInfoEl.textContent = "";
 }
+
 
 
 // ---------- Feature styling & events ----------
-function metricLabel(metric) {
-  // Everything except "Per cent renewable generation" is GWh in this dataset
-  return metric === "Per cent renewable generation" ? "%" : "GWh";
-}
-
 function styleFeature(feature) {
   const name = feature.properties.STATE_NAME || feature.properties.STATE || feature.properties.name;
   const v = Number(dataByState[name]?.[activeMetric]);
@@ -113,9 +153,7 @@ function styleFeature(feature) {
 function popupHTML(name, obj) {
   const rows = metrics.map(k => {
     const v = obj?.[k];
-    const unit = metricLabel(k);
-    const val = (v === null || v === undefined || isNaN(v)) ? "No data" : `${v} ${unit}`;
-    return `<tr><td style="padding-right:8px">${k}</td><td><strong>${val}</strong></td></tr>`;
+    return `<tr><td style="padding-right:8px">${k}</td><td><strong>${formatValue(k, Number(v))}</strong></td></tr>`;
   }).join("");
   return `<strong>${name}</strong><br><table>${rows}</table>`;
 }
@@ -131,9 +169,9 @@ function onEachFeature(feature, lyr) {
       t.setStyle({ weight: 3, color: "#000" });
       if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) t.bringToFront();
       const v = obj?.[activeMetric];
-      const valText = (v === null || v === undefined || isNaN(v)) ? "No data" : `${v} ${metricLabel(activeMetric)}`;
+      const valText = formatValue(activeMetric, Number(v));
       hoverInfo.innerHTML = `<strong>${name}</strong><br>${activeMetric}: <strong>${valText}</strong>`;
-      t.openPopup(); // hover tooltip-like behavior
+      t.openPopup();
     },
     mouseout: e => {
       geoLayer.resetStyle(e.target);
@@ -153,7 +191,7 @@ function renderLayer(geojson) {
 function recomputeAndRedraw(geojson) {
   const mm = computeMinMax(dataByState, activeMetric);
   minVal = mm.min; maxVal = mm.max;
-  buildLegend(`${activeMetric} (${metricLabel(activeMetric)})`);
+  buildLegend();
   renderLayer(geojson);
 }
 
@@ -162,12 +200,10 @@ async function init() {
   // 1) Load data
   const { table, metricNames } = await loadWideCSV(CSV_PATH);
   dataByState = table;
-  // Optional: if you want to hide some metrics from the dropdown, filter here
   metrics = metricNames;
 
   // 2) Build dropdown
   metricSel.innerHTML = metrics.map(m => `<option value="${m}">${m}</option>`).join("");
-  // Choose a sensible default if present
   activeMetric = metrics.includes("Total renewable") ? "Total renewable" : metrics[0];
 
   // 3) Load boundaries

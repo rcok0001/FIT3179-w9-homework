@@ -24,12 +24,12 @@
       white-space: nowrap !important;
       border: 0 !important;
     }
-    body { margin: 0; }
-    #map { width: 100%; height: 100vh; } /* The iframe host controls the outer height */
+    html, body { height: 100%; margin: 0; }
+    #map { width: 100%; height: 100%; }
   </style>
 </head>
 <body>
-  <div id="map" role="region" aria-label="Choropleth map of Australia Showing Main Sources of Energy by State"></div>
+  <div id="map" role="region" aria-label="Choropleth map of Australia showing energy by state"></div>
 
   <!-- Hidden UI that app.js expects; the bridge syncs these with the host page -->
   <div class="ui bridge-hidden" aria-live="polite" aria-hidden="true">
@@ -39,6 +39,7 @@
     </div>
     <div id="hoverInfo" class="info">Hover a state/territory</div>
     <div id="legend" class="legend" aria-label="Legend"></div>
+    <div id="totalInfo"></div>
   </div>
 
   <div class="source bridge-hidden">Basemap © OpenStreetMap | Boundaries © contributors</div>
@@ -46,42 +47,40 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 
-  <!-- Your app code (unchanged) -->
+  <!-- Your app code -->
   <script src="./app.js"></script>
 
   <!-- Bridge: sync UI with parent via postMessage -->
   <script>
     (function () {
-      const parentOrigin = "*"; // tighten if you know the host origin
+      const parentOrigin = "*"; // set to your site origin if known
       const sel = document.getElementById("metricSelect");
       const legend = document.getElementById("legend");
       const hoverInfo = document.getElementById("hoverInfo");
+      const totalInfo = document.getElementById("totalInfo");
 
-      // Helper to post to parent
       function post(type, payload = {}) {
         try { window.parent.postMessage({ from: "aust-energy-map", type, ...payload }, parentOrigin); }
         catch (e) {}
       }
 
-      // Observe select options & selection -> tell parent to render controls
       const selectObserver = new MutationObserver(() => {
         const options = Array.from(sel.options).map(o => ({ value: o.value, label: o.text, selected: o.selected }));
         post("metric:init", { options, value: sel.value });
       });
       selectObserver.observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ["value", "selected"] });
 
-      // When app.js changes metric (e.g., sets default), notify parent
       sel.addEventListener("change", () => post("metric:change", { value: sel.value }));
 
-      // Observe legend HTML -> mirror on parent
       const legendObserver = new MutationObserver(() => post("legend:update", { html: legend.innerHTML }));
       legendObserver.observe(legend, { childList: true, subtree: true, characterData: true });
 
-      // Observe hover text -> mirror on parent
       const hoverObserver = new MutationObserver(() => post("hover:update", { html: hoverInfo.innerHTML }));
       hoverObserver.observe(hoverInfo, { childList: true, subtree: true, characterData: true });
 
-      // Listen for parent commands (set metric, request sync)
+      const totalObserver = new MutationObserver(() => post("total:update", { text: totalInfo.textContent || "" }));
+      totalObserver.observe(totalInfo, { childList: true, subtree: true, characterData: true });
+
       window.addEventListener("message", (e) => {
         const msg = e.data || {};
         if (msg && msg.to === "aust-energy-map") {
@@ -92,16 +91,15 @@
             }
           }
           if (msg.type === "sync:request") {
-            // Push current UI state back up
             const options = Array.from(sel.options).map(o => ({ value: o.value, label: o.text, selected: o.selected }));
             post("metric:init", { options, value: sel.value });
             post("legend:update", { html: legend.innerHTML });
             post("hover:update", { html: hoverInfo.innerHTML });
+            post("total:update", { text: totalInfo.textContent || "" });
           }
         }
       });
 
-      // Tell parent we're alive. Parent may respond with sync:request.
       window.addEventListener("DOMContentLoaded", () => post("ready"));
     })();
   </script>

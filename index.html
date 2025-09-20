@@ -1,27 +1,48 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Australian Energy — Choropleth Overview</title>
+  <title>Australian Energy — State Generation Mix 2025</title>
 
   <style>
-    :root { --container: 1200px; }
-    * { box-sizing: border-box; }
+    :root {
+      --container: 1200px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       color: #1f2937;
       background: #f9fafb;
     }
+
     header {
       padding: 48px 16px 16px;
       background: #fafafa;
       border-bottom: 1px solid #eee;
     }
-    .wrap { max-width: var(--container); margin: 0 auto; }
-    h1 { margin: 0 0 12px; font-size: clamp(1.6rem, 2.6vw, 2.2rem); }
-    .lede { margin: 0; color: #4b5563; max-width: 65ch; }
+
+    .wrap {
+      max-width: var(--container);
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+    }
+
+    .lede {
+      margin: 0;
+      color: #4b5563;
+      max-width: 65ch;
+    }
 
     .tri {
       display: grid;
@@ -30,23 +51,35 @@
       padding: 24px 16px 40px;
       align-items: start;
     }
-    .tri > * { min-width: 0; }
+
+    .tri>* {
+      min-width: 0;
+    }
 
     .panel {
       background: #fff;
       border: 1px solid #eee;
       border-radius: 12px;
       padding: 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.04);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .04);
     }
-    .panel h2 { margin-top: 0; font-size: 1.05rem; }
-    .panel p { margin: 0.4rem 0; color: #4b5563; }
+
+    .panel h2 {
+      margin-top: 0;
+      font-size: 1.05rem;
+    }
+
+    .panel p {
+      margin: 0.4rem 0;
+      color: #4b5563;
+    }
 
     .map-shell {
       display: grid;
       gap: 12px;
       align-content: start;
     }
+
     .map-frame {
       width: 100%;
       height: clamp(420px, 68vh, 820px);
@@ -56,10 +89,12 @@
       display: block;
     }
 
-    .ui, .source {
+    .ui,
+    .source {
       font-size: 0.9rem;
       color: #555;
     }
+
     .controls {
       display: flex;
       gap: 8px;
@@ -67,77 +102,100 @@
       margin: 8px 0 12px;
       flex-wrap: wrap;
     }
-    #legend { margin-top: 8px; }
-    #hoverInfo { margin-top: 8px; color: #374151; }
+
+    #legend {
+      margin-top: 8px;
+    }
+
+    #hoverInfo {
+      margin-top: 8px;
+      color: #374151;
+    }
+
+    .metric-total {
+      margin-top: 6px;
+      font-size: 0.9rem;
+      color: #374151;
+    }
 
     @media (max-width: 960px) {
-      .tri { grid-template-columns: 1fr; }
-      .map-frame { height: clamp(360px, 60vh, 720px); }
+      .tri {
+        grid-template-columns: 1fr;
+      }
+
+      .map-frame {
+        height: clamp(360px, 60vh, 720px);
+      }
+    }
+
+    /* Legend styles (host page) */
+    .legend {
+      display: grid;
+      gap: 6px;
+    }
+
+    .legend .bar {
+      height: 12px;
+      border-radius: 6px;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+    }
+
+    .legend .axis {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+
+    .legend strong {
+      font-weight: 600;
+      font-size: 0.95rem;
     }
   </style>
 </head>
+
 <body>
   <header>
     <div class="wrap">
-      <h1>Australian Energy — Choropleth Overview</h1>
-      <p class="lede">
-        Explore state and territory energy generation by source. Use the metric selector to switch between fuels,
-        renewables, and totals. Hover a region to see details, or click to pin a popup.
-      </p>
+      <h1>Australia’s Energy Mix by State</h1>
+      <p class="lede">Compare state energy sources and renewable shares across Australia.</p>
     </div>
   </header>
 
   <main class="wrap">
     <section class="tri">
       <!-- Left text panel + HOSTED CONTROLS -->
-      <aside class="panel" aria-label="Left context">
-        <h2>About the data</h2>
-        <p>
-          Figures represent annual generation (GWh) by fuel type. “Per cent renewable” shows the percentage share
-          of renewables in total generation for each state/territory.
-        </p>
-        <p>
-          Use the dropdown to compare wind, hydro, solar PV, and non-renewable sources. Values with no data are
-          shown with a neutral fill.
-        </p>
+      <aside class="panel" aria-label="About the data">
+        <h2>Energy Data Explained</h2>
+        <p>Annual generation in GWh by fuel and state.</p>
+        <p>Dropdown compares coal, gas, solar, wind, renewables.</p>
 
         <!-- Host-side UI mirrored from the iframe -->
         <div class="ui" aria-live="polite">
           <div class="controls" role="group" aria-label="Map controls">
             <label for="hostMetricSelect">Metric:</label>
-            <select id="hostMetricSelect" aria-label="Select metric">
-              <!-- options injected from iframe -->
-            </select>
+            <select id="hostMetricSelect" aria-label="Select metric"></select>
           </div>
-          <div id="hoverInfo" class="info">Hover a state/territory</div>
+
+          <div id="hoverInfo" class="info">Hover a state or territory.</div>
+
           <div id="legend" class="legend" aria-label="Legend"></div>
+          <div id="metricTotal" class="metric-total"></div>
         </div>
       </aside>
 
       <!-- Middle: Map, sandboxed in an iframe -->
       <div class="panel map-shell" aria-label="Map panel">
-        <iframe
-          id="mapFrame"
-          class="map-frame"
-          src="map/index.html"
-          title="Choropleth map of Australia showing energy metrics by state"
-          loading="lazy"
-          referrerpolicy="no-referrer-when-downgrade"
-        ></iframe>
+        <iframe id="mapFrame" class="map-frame" src="map/index.html" title="Energy generation map of Australian states"
+          loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         <div class="source">Basemap © OpenStreetMap | Boundaries © contributors</div>
       </div>
 
       <!-- Right text panel -->
-      <aside class="panel" aria-label="Right context">
-        <h2>How to read the map</h2>
-        <p>
-          Darker shades indicate higher values for the selected metric. The gradient legend shows the scale
-          (min–max) used to color the states.
-        </p>
-        <p>
-          Switch metrics to see how patterns shift across the country. For consistent comparisons, you can also
-          lock the legend scale (I can add a toggle).
-        </p>
+      <aside class="panel" aria-label="How to read the map">
+        <h2>Reading the Map</h2>
+        <p>Darker shades indicate higher values for the metric.</p>
+        <p>Switch fuels to see differences across states.</p>
       </aside>
     </section>
   </main>
@@ -149,13 +207,13 @@
       const metricSelect = document.getElementById("hostMetricSelect");
       const legendHost = document.getElementById("legend");
       const hoverHost = document.getElementById("hoverInfo");
+      const metricTotal = document.getElementById("metricTotal");
 
       function sendToMap(type, payload = {}) {
         try { frame.contentWindow.postMessage({ to: "aust-energy-map", type, ...payload }, "*"); }
-        catch (e) {}
+        catch (e) { }
       }
 
-      // Populate the host select from iframe-provided options
       function renderMetricOptions(options, value) {
         const prev = metricSelect.value;
         metricSelect.innerHTML = "";
@@ -166,45 +224,29 @@
           if (opt.selected || opt.value === value) el.selected = true;
           metricSelect.appendChild(el);
         }
-        // If the selected value changed (initial load), push it back to the map so both sides match
         const chosen = metricSelect.value;
-        if (chosen && chosen !== prev) {
-          sendToMap("metric:set", { value: chosen });
-        }
+        if (chosen && chosen !== prev) sendToMap("metric:set", { value: chosen });
       }
 
-      // Host select -> tell map to change metric
       metricSelect.addEventListener("change", () => {
-        const value = metricSelect.value;
-        sendToMap("metric:set", { value });
+        sendToMap("metric:set", { value: metricSelect.value });
       });
 
-      // Listen for updates coming from the map iframe
       window.addEventListener("message", (e) => {
         const msg = e.data || {};
         if (msg && msg.from === "aust-energy-map") {
-          if (msg.type === "ready") {
-            // Ask the map to sync its current UI state back to us
-            sendToMap("sync:request");
+          if (msg.type === "ready") sendToMap("sync:request");
+          if (msg.type === "metric:init") renderMetricOptions(msg.options || [], msg.value);
+          if (msg.type === "metric:change" && typeof msg.value === "string" && metricSelect.value !== msg.value) {
+            metricSelect.value = msg.value;
           }
-          if (msg.type === "metric:init") {
-            renderMetricOptions(msg.options || [], msg.value);
-          }
-          if (msg.type === "metric:change") {
-            // Map-side changed the metric (e.g., default selection) -> mirror into host select
-            if (typeof msg.value === "string" && metricSelect.value !== msg.value) {
-              metricSelect.value = msg.value;
-            }
-          }
-          if (msg.type === "legend:update") {
-            legendHost.innerHTML = msg.html || "";
-          }
-          if (msg.type === "hover:update") {
-            hoverHost.innerHTML = msg.html || "";
-          }
+          if (msg.type === "legend:update") legendHost.innerHTML = msg.html || "";
+          if (msg.type === "hover:update") hoverHost.innerHTML = msg.html || "";
+          if (msg.type === "total:update") metricTotal.textContent = msg.text || "";
         }
       });
     })();
   </script>
 </body>
+
 </html>
