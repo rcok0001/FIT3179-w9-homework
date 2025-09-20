@@ -1,252 +1,146 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Australian Energy — State Generation Mix 2025</title>
-
+  <title>Australia Energy Generation – Choropleth</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
   <style>
     :root {
-      --container: 1200px;
+      --bg: #0f172a;
+      --card: #111827ee;
+      --text: #e5e7eb;
+      --accent: #60a5fa;
     }
-
-    * {
-      box-sizing: border-box;
-    }
-
+    html, body { height: 100%; }
     body {
       margin: 0;
-      font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      color: #1f2937;
-      background: #f9fafb;
-    }
-
-    header {
-      padding: 48px 16px 16px;
-      background: #fafafa;
-      border-bottom: 1px solid #eee;
-    }
-
-    .wrap {
-      max-width: var(--container);
-      margin: 0 auto;
-    }
-
-    h1 {
-      margin: 0 0 12px;
-      font-size: clamp(1.6rem, 2.6vw, 2.2rem);
-    }
-
-    .lede {
-      margin: 0;
-      color: #4b5563;
-      max-width: 65ch;
-    }
-
-    .tri {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: var(--text);
+      background: radial-gradient(1200px 800px at 50% -10%, #1f2937, var(--bg));
       display: grid;
-      grid-template-columns: 1fr minmax(320px, 2fr) 1fr;
-      gap: 16px;
-      padding: 24px 16px 40px;
-      align-items: start;
+      place-items: center;
     }
-
-    .tri>* {
-      min-width: 0;
-    }
-
-    .panel {
-      background: #fff;
-      border: 1px solid #eee;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, .04);
-    }
-
-    .panel h2 {
-      margin-top: 0;
-      font-size: 1.05rem;
-    }
-
-    .panel p {
-      margin: 0.4rem 0;
-      color: #4b5563;
-    }
-
-    .map-shell {
+    .page {
       display: grid;
-      gap: 12px;
-      align-content: start;
+      grid-template-rows: auto auto 1fr;
+      gap: 1.25rem;
+      width: min(1100px, 92vw);
+      padding: 2rem;
+      box-sizing: border-box;
     }
-
-    .map-frame {
-      width: 100%;
-      height: clamp(420px, 68vh, 820px);
-      border: 0;
-      border-radius: 10px;
-      overflow: hidden;
-      display: block;
+    .card {
+      background: var(--card);
+      border: 1px solid #1f2937;
+      border-radius: 1.25rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      padding: 1.25rem;
     }
-
-    .ui,
-    .source {
-      font-size: 0.9rem;
-      color: #555;
-    }
-
-    .controls {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin: 8px 0 12px;
-      flex-wrap: wrap;
-    }
-
-    #legend {
-      margin-top: 8px;
-    }
-
-    #hoverInfo {
-      margin-top: 8px;
-      color: #374151;
-    }
-
-    .metric-total {
-      margin-top: 6px;
-      font-size: 0.9rem;
-      color: #374151;
-    }
-
-    @media (max-width: 960px) {
-      .tri {
-        grid-template-columns: 1fr;
-      }
-
-      .map-frame {
-        height: clamp(360px, 60vh, 720px);
-      }
-    }
-
-    /* Legend styles (host page) */
-    .legend {
-      display: grid;
-      gap: 6px;
-    }
-
-    .legend .bar {
-      height: 12px;
-      border-radius: 6px;
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
-    }
-
-    .legend .axis {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.85rem;
-      color: #6b7280;
-    }
-
-    .legend strong {
-      font-weight: 600;
-      font-size: 0.95rem;
+    h1 { margin: 0; font-size: clamp(1.6rem, 1rem + 3vw, 2.6rem); }
+    p.lead { margin: .25rem 0 0; color: #cbd5e1; max-width: 75ch; }
+    .grid-center { display: grid; place-items: center; }
+    #map-card { padding: .5rem; }
+    #vis { width: min(100%, 900px); height: 650px; cursor: crosshair; }
+    .controls { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
+    .control { display: grid; gap: .35rem; font-size: .9rem; }
+    select {
+      background: #0b1220; color: var(--text);
+      border: 1px solid #1f2937;
+      border-radius: .65rem;
+      padding: .55rem .7rem;
     }
   </style>
 </head>
-
 <body>
-  <header>
-    <div class="wrap">
-      <h1>Australia’s Energy Mix by State</h1>
-      <p class="lede">Compare state energy sources and renewable shares across Australia.</p>
-    </div>
-  </header>
+  <main class="page">
+    <header class="card">
+      <h1>Australia Energy Generation – Choropleth</h1>
+      <p class="lead">Interactive choropleth of Australian states and what energy sources they use.</p>
+    </header>
 
-  <main class="wrap">
-    <section class="tri">
-      <!-- Left text panel + HOSTED CONTROLS -->
-      <aside class="panel" aria-label="About the data">
-        <h2>Energy Data Explained</h2>
-        <p>Annual generation in GWh by fuel and state.</p>
-        <p>Dropdown compares coal, gas, solar, wind, renewables.</p>
-
-        <!-- Host-side UI mirrored from the iframe -->
-        <div class="ui" aria-live="polite">
-          <div class="controls" role="group" aria-label="Map controls">
-            <label for="hostMetricSelect">Metric:</label>
-            <select id="hostMetricSelect" aria-label="Select metric"></select>
-          </div>
-
-          <div id="hoverInfo" class="info">Hover a state or territory.</div>
-
-          <div id="legend" class="legend" aria-label="Legend"></div>
-          <div id="metricTotal" class="metric-total"></div>
-        </div>
-      </aside>
-
-      <!-- Middle: Map, sandboxed in an iframe -->
-      <div class="panel map-shell" aria-label="Map panel">
-        <iframe id="mapFrame" class="map-frame" src="map/index.html" title="Energy generation map of Australian states"
-          loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-        <div class="source">Basemap © OpenStreetMap | Boundaries © contributors</div>
+    <section class="card controls">
+      <div class="control">
+        <label for="metric">Metric</label>
+        <select id="metric">
+          <option>Total</option>
+          <option>Total renewable</option>
+          <option>Total non-renewable</option>
+          <option>Per cent renewable generation</option>
+          <option>Black coal</option>
+          <option>Brown coal</option>
+          <option>Natural gas</option>
+          <option>Oil products</option>
+          <option>Biomass</option>
+          <option>Wind</option>
+          <option>Hydro</option>
+          <option>Large-scale solar PV</option>
+          <option>Small-scale solar PV</option>
+        </select>
       </div>
+    </section>
 
-      <!-- Right text panel -->
-      <aside class="panel" aria-label="How to read the map">
-        <h2>Reading the Map</h2>
-        <p>Darker shades indicate higher values for the metric.</p>
-        <p>Switch fuels to see differences across states.</p>
-      </aside>
+    <section id="map-card" class="card grid-center">
+      <div id="vis" aria-label="Choropleth map"></div>
     </section>
   </main>
 
-  <!-- Host <-> Iframe messaging glue -->
   <script>
-    (function () {
-      const frame = document.getElementById("mapFrame");
-      const metricSelect = document.getElementById("hostMetricSelect");
-      const legendHost = document.getElementById("legend");
-      const hoverHost = document.getElementById("hoverInfo");
-      const metricTotal = document.getElementById("metricTotal");
+    const GEOJSON_URL = './states.geojson';
+    const CSV_URL = './values_clean.csv';
+    const scheme = 'oranges';
 
-      function sendToMap(type, payload = {}) {
-        try { frame.contentWindow.postMessage({ to: "aust-energy-map", type, ...payload }, "*"); }
-        catch (e) { }
-      }
+    const metricSelect = document.getElementById('metric');
 
-      function renderMetricOptions(options, value) {
-        const prev = metricSelect.value;
-        metricSelect.innerHTML = "";
-        for (const opt of options) {
-          const el = document.createElement("option");
-          el.value = opt.value;
-          el.textContent = opt.label;
-          if (opt.selected || opt.value === value) el.selected = true;
-          metricSelect.appendChild(el);
+    function buildSpec(selectedMetric) {
+      return {
+        $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+        width: 'container',
+        height: 610,
+        background: null,
+        config: {
+          view: { stroke: null },
+          axis: { grid: false, labelColor: '#e5e7eb', titleColor: '#e5e7eb' },
+          legend: { labelColor: '#e5e7eb', titleColor: '#e5e7eb' }
+        },
+        data: { url: GEOJSON_URL, format: { type: 'json', property: 'features' } },
+        transform: [
+          { calculate: 'datum.properties.STATE_NAME || datum.properties.state || datum.properties.State || datum.properties.name', as: 'state_key' },
+          {
+            lookup: 'state_key',
+            from: {
+              data: { url: CSV_URL },
+              key: 'state',
+              fields: [
+                'Total','Total renewable','Total non-renewable','Per cent renewable generation',
+                'Black coal','Brown coal','Natural gas','Oil products','Biomass','Wind','Hydro',
+                'Large-scale solar PV','Small-scale solar PV'
+              ]
+            }
+          },
+          { calculate: `toNumber(datum[${JSON.stringify(selectedMetric)}])`, as: 'metric_value' },
+          { calculate: `isFinite(datum.metric_value) ? datum.metric_value : null`, as: 'metric_label' }
+        ],
+        projection: { type: 'mercator', center: [135, -27], scale: 600, translate: [450, 320] },
+        mark: { type: 'geoshape', stroke: '#0b1220', strokeWidth: 1 },
+        encoding: {
+          color: { field: 'metric_value', type: 'quantitative', scale: { scheme: scheme, nice: true }, legend: { title: selectedMetric } },
+          tooltip: [
+            { field: 'state_key', title: 'State' },
+            { field: 'metric_label', title: selectedMetric, type: 'quantitative', format: ',.2f' }
+          ]
         }
-        const chosen = metricSelect.value;
-        if (chosen && chosen !== prev) sendToMap("metric:set", { value: chosen });
-      }
+      };
+    }
 
-      metricSelect.addEventListener("change", () => {
-        sendToMap("metric:set", { value: metricSelect.value });
-      });
+    async function render() {
+      const spec = buildSpec(metricSelect.value);
+      await vegaEmbed('#vis', spec, { renderer: 'canvas', actions: false });
+    }
 
-      window.addEventListener("message", (e) => {
-        const msg = e.data || {};
-        if (msg && msg.from === "aust-energy-map") {
-          if (msg.type === "ready") sendToMap("sync:request");
-          if (msg.type === "metric:init") renderMetricOptions(msg.options || [], msg.value);
-          if (msg.type === "metric:change" && typeof msg.value === "string" && metricSelect.value !== msg.value) {
-            metricSelect.value = msg.value;
-          }
-          if (msg.type === "legend:update") legendHost.innerHTML = msg.html || "";
-          if (msg.type === "hover:update") hoverHost.innerHTML = msg.html || "";
-          if (msg.type === "total:update") metricTotal.textContent = msg.text || "";
-        }
-      });
-    })();
+    metricSelect.addEventListener('change', render);
+    render();
   </script>
 </body>
-
 </html>
