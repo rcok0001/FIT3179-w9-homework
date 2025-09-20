@@ -1,42 +1,109 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Australian Energy Statistics 2025</title>
 
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin />
 
   <!-- Your styles -->
   <link rel="stylesheet" href="./styles.css" />
-</head>
 
+  <style>
+    /* Keep the UI nodes present for app.js, but visually hidden in the iframe */
+    .bridge-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0 0 0 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    body { margin: 0; }
+    #map { width: 100%; height: 100vh; } /* The iframe host controls the outer height */
+  </style>
+</head>
 <body>
   <div id="map" role="region" aria-label="Choropleth map of Australia Showing Main Sources of Energy by State"></div>
 
-  <!-- UI container: everything inside stacks vertically with spacing -->
-  <div class="ui" aria-live="polite">
+  <!-- Hidden UI that app.js expects; the bridge syncs these with the host page -->
+  <div class="ui bridge-hidden" aria-live="polite" aria-hidden="true">
     <div class="controls" role="group" aria-label="Map controls">
       <label for="metricSelect">Metric:</label>
       <select id="metricSelect" aria-label="Select metric"></select>
     </div>
-
-
     <div id="hoverInfo" class="info">Hover a state/territory</div>
     <div id="legend" class="legend" aria-label="Legend"></div>
   </div>
 
-  <div class="source">Basemap © OpenStreetMap | Boundaries © contributors</div>
+  <div class="source bridge-hidden">Basemap © OpenStreetMap | Boundaries © contributors</div>
 
   <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 
   <!-- Your app code (unchanged) -->
   <script src="./app.js"></script>
-</body>
 
+  <!-- Bridge: sync UI with parent via postMessage -->
+  <script>
+    (function () {
+      const parentOrigin = "*"; // tighten if you know the host origin
+      const sel = document.getElementById("metricSelect");
+      const legend = document.getElementById("legend");
+      const hoverInfo = document.getElementById("hoverInfo");
+
+      // Helper to post to parent
+      function post(type, payload = {}) {
+        try { window.parent.postMessage({ from: "aust-energy-map", type, ...payload }, parentOrigin); }
+        catch (e) {}
+      }
+
+      // Observe select options & selection -> tell parent to render controls
+      const selectObserver = new MutationObserver(() => {
+        const options = Array.from(sel.options).map(o => ({ value: o.value, label: o.text, selected: o.selected }));
+        post("metric:init", { options, value: sel.value });
+      });
+      selectObserver.observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ["value", "selected"] });
+
+      // When app.js changes metric (e.g., sets default), notify parent
+      sel.addEventListener("change", () => post("metric:change", { value: sel.value }));
+
+      // Observe legend HTML -> mirror on parent
+      const legendObserver = new MutationObserver(() => post("legend:update", { html: legend.innerHTML }));
+      legendObserver.observe(legend, { childList: true, subtree: true, characterData: true });
+
+      // Observe hover text -> mirror on parent
+      const hoverObserver = new MutationObserver(() => post("hover:update", { html: hoverInfo.innerHTML }));
+      hoverObserver.observe(hoverInfo, { childList: true, subtree: true, characterData: true });
+
+      // Listen for parent commands (set metric, request sync)
+      window.addEventListener("message", (e) => {
+        const msg = e.data || {};
+        if (msg && msg.to === "aust-energy-map") {
+          if (msg.type === "metric:set" && typeof msg.value === "string") {
+            if (sel.value !== msg.value) {
+              sel.value = msg.value;
+              sel.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+          }
+          if (msg.type === "sync:request") {
+            // Push current UI state back up
+            const options = Array.from(sel.options).map(o => ({ value: o.value, label: o.text, selected: o.selected }));
+            post("metric:init", { options, value: sel.value });
+            post("legend:update", { html: legend.innerHTML });
+            post("hover:update", { html: hoverInfo.innerHTML });
+          }
+        }
+      });
+
+      // Tell parent we're alive. Parent may respond with sync:request.
+      window.addEventListener("DOMContentLoaded", () => post("ready"));
+    })();
+  </script>
+</body>
 </html>
