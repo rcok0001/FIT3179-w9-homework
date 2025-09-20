@@ -1,42 +1,147 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Australian Energy Statistics 2025</title>
+  <title>Australian Energy — Choropleth Overview</title>
 
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <!-- Page layout styles (not map-specific) -->
+  <style>
+    :root { --container: 1200px; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: #1f2937;
+      background: #f9fafb;
+    }
+    header {
+      padding: 48px 16px 16px;
+      background: #fafafa;
+      border-bottom: 1px solid #eee;
+    }
+    .wrap { max-width: var(--container); margin: 0 auto; }
+    h1 { margin: 0 0 12px; font-size: clamp(1.6rem, 2.6vw, 2.2rem); }
+    .lede { margin: 0; color: #4b5563; max-width: 65ch; }
 
-  <!-- Your styles -->
-  <link rel="stylesheet" href="./styles.css" />
+    /* 3-column content area (left text | map | right text) */
+    .tri {
+      display: grid;
+      grid-template-columns: 1fr minmax(320px, 2fr) 1fr;
+      gap: 16px;
+      padding: 24px 16px 40px;
+      align-items: start;
+    }
+    /* Prevent grid items from forcing extra width */
+    .tri > * { min-width: 0; }
+
+    .panel {
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    }
+    .panel h2 { margin-top: 0; font-size: 1.05rem; }
+    .panel p { margin: 0.4rem 0; color: #4b5563; }
+
+    /* Map iframe wrapper: fully contains the map so it can't spill */
+    .map-shell {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    /* Responsive sizing: change the clamp to taste */
+    .map-frame {
+      width: 100%;
+      height: clamp(420px, 68vh, 820px);
+      border: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      display: block;
+    }
+
+    .ui, .source {
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    /* Make it stack nicely on small screens */
+    @media (max-width: 960px) {
+      .tri { grid-template-columns: 1fr; }
+      .map-frame { height: clamp(360px, 60vh, 720px); }
+    }
+  </style>
+
+  <!-- Only the host page’s own CSS/JS lives here; the map loads inside the iframe -->
 </head>
-
 <body>
-  <div id="map" role="region" aria-label="Choropleth map of Australia Showing Main Sources of Energy by State"></div>
-
-  <!-- UI container: everything inside stacks vertically with spacing -->
-  <div class="ui" aria-live="polite">
-    <div class="controls" role="group" aria-label="Map controls">
-      <label for="metricSelect">Metric:</label>
-      <select id="metricSelect" aria-label="Select metric"></select>
+  <header>
+    <div class="wrap">
+      <h1>Australian Energy — Choropleth Overview</h1>
+      <p class="lede">
+        Explore state and territory energy generation by source. Use the metric selector to switch between fuels,
+        renewables, and totals. Hover a region to see details, or click to pin a popup.
+      </p>
     </div>
+  </header>
 
+  <main class="wrap">
+    <section class="tri">
+      <!-- Left text panel -->
+      <aside class="panel" aria-label="Left context">
+        <h2>About the data</h2>
+        <p>
+          Figures represent annual generation (GWh) by fuel type. “Per cent renewable” shows the percentage share
+          of renewables in total generation for each state/territory.
+        </p>
+        <p>
+          Use the dropdown to compare wind, hydro, solar PV, and non-renewable sources. Values with no data are
+          shown with a neutral fill.
+        </p>
+      </aside>
 
-    <div id="hoverInfo" class="info">Hover a state/territory</div>
-    <div id="legend" class="legend" aria-label="Legend"></div>
-  </div>
+      <!-- Middle: Map, sandboxed in an iframe so its CSS cannot bleed out -->
+      <div class="panel map-shell" aria-label="Map panel">
+        <!--
+          Point this to your map’s standalone HTML (e.g., map/index.html) that includes:
+          - Leaflet CSS/JS
+          - map/styles.css
+          - map/app.js
+          If your current map is assembled in this page, move that markup into map/index.html.
+        -->
+        <iframe
+          class="map-frame"
+          src="map/index.html"
+          title="Choropleth map of Australia showing energy metrics by state"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+        ></iframe>
 
-  <div class="source">Basemap © OpenStreetMap | Boundaries © contributors</div>
+        <!-- Optional host-page notes (these are outside the iframe) -->
+        <div class="ui" aria-live="polite">
+          Tip: the map UI controls live inside the map itself now. If you need host-level controls,
+          we can message the iframe via postMessage.
+        </div>
+        <div class="source">Basemap © OpenStreetMap | Boundaries © contributors</div>
+      </div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+      <!-- Right text panel -->
+      <aside class="panel" aria-label="Right context">
+        <h2>How to read the map</h2>
+        <p>
+          Darker shades indicate higher values for the selected metric. The gradient legend shows the scale
+          (min–max) used to color the states.
+        </p>
+        <p>
+          Switch metrics to see how patterns shift across the country. For consistent comparisons, you can also
+          lock the legend scale (I can add a toggle inside the map iframe).
+        </p>
+      </aside>
+    </section>
+  </main>
 
-  <!-- Your app code (unchanged) -->
-  <script src="./app.js"></script>
+  <!-- No Leaflet includes here; they live inside map/index.html -->
 </body>
-
 </html>

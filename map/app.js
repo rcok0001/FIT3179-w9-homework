@@ -1,6 +1,7 @@
 // ---------- Config ----------
-const GEOJSON_PATH = "./data/states.geojson";
-const CSV_PATH = "./data/values_clean.csv"; // <= use the cleaned CSV I linked
+const BASE = window.MAP_BASE || ""; // main page sets this to "map/", standalone map page leaves it unset
+const GEOJSON_PATH = BASE + "./data/states.geojson";
+const CSV_PATH = BASE + "./data/values_clean.csv"; // <= use the cleaned CSV I linked
 
 // 10-step orange, light→dark (no near-white)
 const RAMP = [
