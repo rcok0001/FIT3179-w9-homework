@@ -126,7 +126,7 @@ function buildLegend() {
   legendEl.innerHTML = `
     <div style="font-weight:600;font-size:.95rem;">${activeMetric} (${unit})</div>
     <div style="font-size:.9rem;color:#374151;margin-bottom:4px;">${valueText}</div>
-    <div style="font-weight:600;margin-top:6px;">Scale</div>
+    <div style="font-weight:600;margin-top:6px;">Legend</div>
     <div class="bar" style="background:${gradient};
          height:12px;border-radius:6px;
          box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);"></div>
