@@ -113,9 +113,14 @@
   <main class="page">
     <header class="card">
       <h1>Australia Electricity Generation by State, <span id="year-label">2023</span></h1>
-      <p class="lead">Interactive choropleth using a conic equal-area projection and graticule. Hover for details. Data
-        sources: <code>states.geojson</code> and <code>values_clean.csv</code>. Colour scheme is locked to orange for
-        consistency.</p>
+      <p class="lead">Interactive choropleth using a conic equal-area projection and graticule. Hover for details.</p>
+      <small>
+        Sources:
+        <a href="https://example.com/states.geojson" target="_blank" rel="noopener">states.geojson</a>,
+        <a href="https://www.energy.gov.au/energy-data/australian-energy-statistics" target="_blank" rel="noopener">
+          Australian Energy Statistics
+        </a>
+      </small>
     </header>
 
     <section class="card controls">
@@ -247,5 +252,16 @@
     render(); // initial
   </script>
 </body>
+
+<footer class="card">
+  <small>
+    Sources:
+    <a href="https://example.com/states.geojson" target="_blank" rel="noopener">states.geojson</a>,
+    <a href="https://www.energy.gov.au/energy-data/australian-energy-statistics" target="_blank" rel="noopener">
+      Australian Energy Statistics
+    </a>
+  </small>
+</footer>
+
 
 </html>
