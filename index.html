@@ -1,28 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Australia Energy Generation – Choropleth</title>
+  <title>Australia Electricity Generation by State (Choropleth)</title>
+  <!-- Vega & Vega-Lite (from CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
   <style>
+    /* Override Vega tooltip alignment */
+    .vega-tooltip {
+      text-align: left !important;
+    }
+
+    /* Ensure both key and value columns align left */
+    .vega-tooltip td {
+      text-align: left !important;
+    }
+
     :root {
       --bg: #0f172a;
       --card: #111827ee;
       --text: #e5e7eb;
       --accent: #60a5fa;
     }
-    html, body { height: 100%; }
+
+    html,
+    body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
       color: var(--text);
       background: radial-gradient(1200px 800px at 50% -10%, #1f2937, var(--bg));
       display: grid;
       place-items: center;
     }
+
     .page {
       display: grid;
       grid-template-rows: auto auto 1fr;
@@ -31,43 +49,83 @@
       padding: 2rem;
       box-sizing: border-box;
     }
+
     .card {
       background: var(--card);
       border: 1px solid #1f2937;
       border-radius: 1.25rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
       padding: 1.25rem;
     }
-    h1 { margin: 0; font-size: clamp(1.6rem, 1rem + 3vw, 2.6rem); }
-    p.lead { margin: .25rem 0 0; color: #cbd5e1; max-width: 75ch; }
-    .grid-center { display: grid; place-items: center; }
-    #map-card { padding: .5rem; }
-    #vis { width: min(100%, 900px); height: 650px; cursor: crosshair; }
-    .controls { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
-    .control { display: grid; gap: .35rem; font-size: .9rem; }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.6rem, 1rem + 3vw, 2.6rem);
+      line-height: 1.15;
+    }
+
+    p.lead {
+      margin: .25rem 0 0;
+      color: #cbd5e1;
+      max-width: 80ch;
+    }
+
+    .grid-center {
+      display: grid;
+      place-items: center;
+    }
+
+    #map-card {
+      padding: .5rem;
+    }
+
+    #vis {
+      width: min(100%, 900px);
+      height: 650px;
+      cursor: crosshair;
+    }
+
+    .controls {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .control {
+      display: grid;
+      gap: .35rem;
+      font-size: .9rem;
+    }
+
     select {
-      background: #0b1220; color: var(--text);
+      background: #0b1220;
+      color: var(--text);
       border: 1px solid #1f2937;
       border-radius: .65rem;
       padding: .55rem .7rem;
     }
   </style>
+
 </head>
+
 <body>
   <main class="page">
     <header class="card">
-      <h1>Australia Energy Generation – Choropleth</h1>
-      <p class="lead">Interactive choropleth of Australian states and what energy sources they use.</p>
+      <h1>Australia Electricity Generation by State, <span id="year-label">2023</span></h1>
+      <p class="lead">Interactive choropleth using a conic equal-area projection and graticule. Hover for details. Data
+        sources: <code>states.geojson</code> and <code>values_clean.csv</code>. Colour scheme is locked to orange for
+        consistency.</p>
     </header>
 
     <section class="card controls">
       <div class="control">
         <label for="metric">Metric</label>
         <select id="metric">
+          <option selected>Per cent renewable generation</option>
           <option>Total</option>
           <option>Total renewable</option>
           <option>Total non-renewable</option>
-          <option>Per cent renewable generation</option>
           <option>Black coal</option>
           <option>Brown coal</option>
           <option>Natural gas</option>
@@ -87,13 +145,24 @@
   </main>
 
   <script>
+    // ---- Paths to your data files ----
     const GEOJSON_URL = './states.geojson';
     const CSV_URL = './values_clean.csv';
-    const scheme = 'oranges';
+    const DATA_YEAR = '2023';
+    const scheme = 'oranges'; // locked
 
     const metricSelect = document.getElementById('metric');
+    const yearLabel = document.getElementById('year-label');
+    yearLabel.textContent = DATA_YEAR;
+
+    function unitsFor(metric) {
+      // Assume % if name contains 'Per cent' or '%', else GWh
+      return /%|Per cent/i.test(metric) ? '' : ' (GWh)';
+    }
 
     function buildSpec(selectedMetric) {
+      const legendTitle = selectedMetric + unitsFor(selectedMetric);
+
       return {
         $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
         width: 'container',
@@ -104,33 +173,68 @@
           axis: { grid: false, labelColor: '#e5e7eb', titleColor: '#e5e7eb' },
           legend: { labelColor: '#e5e7eb', titleColor: '#e5e7eb' }
         },
-        data: { url: GEOJSON_URL, format: { type: 'json', property: 'features' } },
-        transform: [
-          { calculate: 'datum.properties.STATE_NAME || datum.properties.state || datum.properties.State || datum.properties.name', as: 'state_key' },
+        projection: {
+          type: 'conicEqualArea',
+          center: [135, -27],
+          rotate: [-140, 0, 0],
+          parallels: [-18, -36],
+          scale: 540,
+          translate: [1300, 820]
+        },
+        layer: [
+          // 1) Graticule background
           {
-            lookup: 'state_key',
-            from: {
-              data: { url: CSV_URL },
-              key: 'state',
-              fields: [
-                'Total','Total renewable','Total non-renewable','Per cent renewable generation',
-                'Black coal','Brown coal','Natural gas','Oil products','Biomass','Wind','Hydro',
-                'Large-scale solar PV','Small-scale solar PV'
+            data: { graticule: true },
+            mark: { type: 'geoshape', stroke: '#64748b', strokeWidth: 0.5, fill: null, opacity: 0.35 }
+          },
+          // 2) Choropleth layer with normalization fields
+          {
+            data: { url: GEOJSON_URL, format: { type: 'json', property: 'features' } },
+            transform: [
+              { calculate: 'datum.properties.STATE_NAME || datum.properties.state || datum.properties.State || datum.properties.name', as: 'state_key' },
+              {
+                lookup: 'state_key',
+                from: {
+                  data: { url: CSV_URL },
+                  key: 'state',
+                  fields: [
+                    'Total', 'Total renewable', 'Total non-renewable', 'Per cent renewable generation',
+                    'Black coal', 'Brown coal', 'Natural gas', 'Oil products', 'Biomass', 'Wind', 'Hydro',
+                    'Large-scale solar PV', 'Small-scale solar PV',
+                    // Optional helper fields if present in CSV (ignored if missing)
+                    'population', 'area_km2'
+                  ]
+                }
+              },
+              // Base metric
+              { calculate: `toNumber(datum[${JSON.stringify(selectedMetric)}])`, as: 'metric_value' },
+              { calculate: `isFinite(datum.metric_value) ? datum.metric_value : null`, as: 'metric_label' },
+              // National total for share-of-AU normalisation
+              { joinaggregate: [{ op: 'sum', field: 'metric_value', as: 'total_metric' }] },
+              // Normalised fields
+              { calculate: 'isFinite(datum.metric_value) && isFinite(datum.total_metric) && datum.total_metric>0 ? (datum.metric_value/datum.total_metric)*100 : null', as: 'share_pct' },
+              { calculate: 'isFinite(datum.metric_value) && isFinite(datum.population) && datum.population>0 ? (datum.metric_value/datum.population)*100000 : null', as: 'per_100k' },
+              { calculate: 'isValid(datum.metric_value)', as: 'hasData' }
+            ],
+            mark: { type: 'geoshape', stroke: '#0b1220', strokeWidth: 1 },
+            encoding: {
+              color: {
+                field: 'metric_value', type: 'quantitative',
+                scale: { scheme: scheme, nice: true },
+                legend: { title: legendTitle }
+              },
+              opacity: { condition: { test: 'datum.hasData', value: 1 }, value: 0.35 },
+              tooltip: [
+                { field: 'state_key', title: 'State' },
+                // Normalised tooltip values
+                //{ field: 'per_100k', title: 'Per 100k', type: 'quantitative', format: ',.2f' },
+                { field: 'share_pct', title: 'Share of AU (%)', type: 'quantitative', format: ',.2f' },
+                // Absolute with unit
+                { field: 'metric_label', title: legendTitle, type: 'quantitative', format: ',.2f' }
               ]
             }
-          },
-          { calculate: `toNumber(datum[${JSON.stringify(selectedMetric)}])`, as: 'metric_value' },
-          { calculate: `isFinite(datum.metric_value) ? datum.metric_value : null`, as: 'metric_label' }
-        ],
-        projection: { type: 'mercator', center: [135, -27], scale: 600, translate: [450, 320] },
-        mark: { type: 'geoshape', stroke: '#0b1220', strokeWidth: 1 },
-        encoding: {
-          color: { field: 'metric_value', type: 'quantitative', scale: { scheme: scheme, nice: true }, legend: { title: selectedMetric } },
-          tooltip: [
-            { field: 'state_key', title: 'State' },
-            { field: 'metric_label', title: selectedMetric, type: 'quantitative', format: ',.2f' }
-          ]
-        }
+          }
+        ]
       };
     }
 
@@ -140,7 +244,8 @@
     }
 
     metricSelect.addEventListener('change', render);
-    render();
+    render(); // initial
   </script>
 </body>
+
 </html>
